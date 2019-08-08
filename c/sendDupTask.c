@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
@@ -65,6 +66,9 @@ struct command
     int sockfd;
     char *ipaddress;
     int portno;
+    int dup;
+    int sockfd2;
+    int portno2;
 };
 
 volatile int startflag = 0;
@@ -107,8 +111,31 @@ void *sender(void *arg)
 	startTimestamp = now;
 	struct task * t = exp->tasks + i;
 	t->sendTimestamp = rdtscp();
-	unsigned long write_start = t->sendTimestamp;	
-	int nr_write = write(exp->sockfd, t->term, REQUEST_BUFFER_SIZE);
+	unsigned long write_start = t->sendTimestamp;
+//	printf("Write\n");
+	if (exp->dup)
+	{
+	    int fd = i%2 == 0? exp->sockfd: exp->sockfd2;
+	    int nr_write = write(fd, t->term, REQUEST_BUFFER_SIZE);
+	} else
+	{
+	    int nr_write = write(exp->sockfd, t->term, REQUEST_BUFFER_SIZE);
+	}
+
+	    
+
+/* 	if (exp->dup && i>2) */
+/* 	{ */
+/* 	    struct task * last = exp->tasks + i -2; */
+/* 	    if (last->receiveTimestamp == 0) */
+/* 	    { */
+/* 		fprintf(stderr, "heigh %d\n", i); */
+/* 		// heidge request */
+/* 		write(exp->sockfd2, last->term, REQUEST_BUFFER_SIZE); */
+/* 	    } */
+
+/* //	    printf("Write dup\n"); */
+/* 	} */
 	unsigned long write_end = rdtscp();	
 //	printf("%lu: Write %s, %d, %lu, %lu, %lu, %lu\n", t->sendTimestamp, t->term, nr_write, startTimestamp, (write_end - write_start)/2100, usecond, intervalStamp );
 //	usleep(1000);
@@ -130,34 +157,93 @@ void *receiver(void *arg)
     int nr_receive = 0;
     char dummyResponse[REQUEST_BUFFER_SIZE] = "#dummy";
     printf("#taskid:hit:receiveStamp:queuetime(ns):executeTime(ns):cycles:instructions:clientLatnecy: clientSendStamp:clientReceiveStamp\n");
+    fd_set rfds;
+    FD_ZERO(&rfds);
+    FD_SET(exp->sockfd, &rfds);
+    if (exp->dup)
+    {
+	FD_SET(exp->sockfd2, &rfds);
+    }
+    int maxfd = exp->sockfd > exp->sockfd2? exp->sockfd:exp->sockfd2;
     while(1)
     {
-//	ioctl(exp->sockfd, FIONREAD, &nr_receive);	
-	int nr_read = read(exp->sockfd, buf, RECV_BUFFER_SIZE);
-//	write(exp->sockfd, dummyResponse, REQUEST_BUFFER_SIZE);
-	buf[RECV_BUFFER_SIZE] = 0;
-	unsigned long receiveStamp = rdtscp();
-	int taskId = strtol(buf, NULL, 10);
-	if (taskId >= 0 && taskId < exp->nrTask)
+	fd_set listfds = rfds;
+	int ret = select(maxfd+1, &listfds, NULL, NULL, NULL);
+	if (ret == -1)
 	{
-	    struct task *t = &(tasks[taskId]);
-	    t->receiveTimestamp = receiveStamp;
-	    memcpy(t->response, buf, RECV_BUFFER_SIZE + 1);
-	    receiveOrder[nr_receive] = taskId;
-	    nr_receive += 1;
-//	    printf("%lu: %s, %lu, %lu\n", receiveStamp, buf, t->receiveTimestamp - t->sendTimestamp, nr_receive);
+	    fprintf(stderr, "Select returns %d\n", ret);
+	    continue;
 	}
-	if (nr_receive == (exp->nrTask))
+	if (FD_ISSET(exp->sockfd, &listfds))
 	{
-	    for (int i=0; i<exp->nrTask; i++)
-	    {
-		unsigned int taskId = receiveOrder[i];
+	    int nr_read = read(exp->sockfd, buf, RECV_BUFFER_SIZE);
+//	write(exp->sockfd, dummyResponse, REQUEST_BUFFER_SIZE);
+	    buf[RECV_BUFFER_SIZE] = 0;
+	    unsigned long receiveStamp = rdtscp();
+	    int taskId = strtol(buf, NULL, 10);	
+	    if (taskId >= 0 && taskId < exp->nrTask)
+	    {	   
 		struct task *t = &(tasks[taskId]);
-		printf("%s: %.3f : %lu: %lu\n",t->response, (t->receiveTimestamp - t->sendTimestamp)/(2100.0), t->sendTimestamp, t->receiveTimestamp);
+		if (t->receiveTimestamp)
+		{
+//		    printf("Already received %d\n", taskId);
+		
+		} else {
+		    t->receiveTimestamp = receiveStamp;
+		    memcpy(t->response, buf, RECV_BUFFER_SIZE + 1);
+		    receiveOrder[nr_receive] = taskId;
+		    nr_receive += 1;
+		}
+//	    printf("%lu: %s, %lu, %lu\n", receiveStamp, buf, t->receiveTimestamp - t->sendTimestamp, nr_receive);
 	    }
-	    exit(0);
+	    if (nr_receive == (exp->nrTask))
+	    {
+		for (int i=0; i<exp->nrTask; i++)
+		{
+		    unsigned int taskId = receiveOrder[i];
+		    struct task *t = &(tasks[taskId]);
+		    printf("%s: %.3f : %lu: %lu\n",t->response, (t->receiveTimestamp - t->sendTimestamp)/(2100.0), t->sendTimestamp, t->receiveTimestamp);
+		}
+		exit(0);
+	    }
 	}
 
+	if (exp->dup)
+	{
+	    if (FD_ISSET(exp->sockfd2, &listfds))
+	    {
+			    int nr_read = read(exp->sockfd2, buf, RECV_BUFFER_SIZE);
+//	write(exp->sockfd, dummyResponse, REQUEST_BUFFER_SIZE);
+	    buf[RECV_BUFFER_SIZE] = 0;
+	    unsigned long receiveStamp = rdtscp();
+	    int taskId = strtol(buf, NULL, 10);	
+	    if (taskId >= 0 && taskId < exp->nrTask)
+	    {	   
+		struct task *t = &(tasks[taskId]);
+		if (t->receiveTimestamp)
+		{
+//		    printf("Already received %d\n", taskId);
+		
+		} else {
+		    t->receiveTimestamp = receiveStamp;
+		    memcpy(t->response, buf, RECV_BUFFER_SIZE + 1);
+		    receiveOrder[nr_receive] = taskId;
+		    nr_receive += 1;
+		}
+//	    printf("%lu: %s, %lu, %lu\n", receiveStamp, buf, t->receiveTimestamp - t->sendTimestamp, nr_receive);
+	    }
+	    if (nr_receive == (exp->nrTask))
+	    {
+		for (int i=0; i<exp->nrTask; i++)
+		{
+		    unsigned int taskId = receiveOrder[i];
+		    struct task *t = &(tasks[taskId]);
+		    printf("%s: %.3f : %lu: %lu\n",t->response, (t->receiveTimestamp - t->sendTimestamp)/(2100.0), t->sendTimestamp, t->receiveTimestamp);
+		}
+		exit(0);
+	    }
+	    }
+	}
     }
 }
 
@@ -166,21 +252,18 @@ void *receiver(void *arg)
     do { perror(msg); exit(EXIT_FAILURE); } while (0)
 
 
-int runExperiment(struct command *exp)
+int connectServer(char *ipaddress, int portno)
 {
-    fprintf(stderr, "Play %lu, %d tasks\n", sizeof(exp->tasks), exp->nrTask);
-    // create the socket
-    int sockfd;
     struct sockaddr_in serv_addr;
-
+    int sockfd;
     // get address
     memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(exp->portno);
-    int getAddr = inet_aton(exp->ipaddress, &(serv_addr.sin_addr));
+    serv_addr.sin_port = htons(portno);
+    int getAddr = inet_aton(ipaddress, &(serv_addr.sin_addr));
     if (getAddr == 0)
     {
-	fprintf(stderr, "Can't get address of IP %s\n", exp->ipaddress);
+	fprintf(stderr, "Can't get address of IP %s\n", ipaddress);
 	return -1;
     }
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -188,7 +271,6 @@ int runExperiment(struct command *exp)
     {
 	handle_error("Can't create socket.");
     }
-    exp->sockfd = sockfd;
     if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
 	fprintf(stderr, "Can't connect to the server.\n");
@@ -196,6 +278,18 @@ int runExperiment(struct command *exp)
     }
     int one = 1;
     setsockopt(sockfd, SOL_TCP, TCP_NODELAY, &one, sizeof(one));
+    return sockfd;
+}
+
+int runExperiment(struct command *exp)
+{
+    fprintf(stderr, "Play %lu, %d tasks\n", sizeof(exp->tasks), exp->nrTask);
+    // create the socket
+    exp->sockfd = connectServer(exp->ipaddress, exp->portno);
+    if (exp->dup)
+    {
+	exp->sockfd2 = connectServer(exp->ipaddress, exp->portno2);
+    }
     fprintf(stderr, "Connect to %s at fd %d\n", exp->ipaddress, exp->sockfd);
     // create two threads and pin them to two different CPUs
     int senderId = pthread_create(&senderThread, NULL, &sender, (void *)exp);
@@ -211,6 +305,11 @@ struct command *loadCommand(int argc, char **argv)
     comm->qps = strtol(argv[1], NULL, 10);
     comm->iteration = strtol(argv[2], NULL, 10);
     comm->portno = strtol(argv[5], NULL, 10);
+    if (argc > 6)
+    {
+	comm->dup = 1;
+	comm->portno2 = strtol(argv[6], NULL, 10);	
+    }
     comm->ipaddress = argv[4];
    
     char * taskFileName = argv[3];
@@ -296,7 +395,7 @@ struct command *loadCommand(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-    if (argc != 6)
+    if (argc < 6)
     {
 	fprintf(stderr, "%s\n", helpMessage);
 	exit(0);

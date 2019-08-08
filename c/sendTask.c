@@ -135,6 +135,10 @@ void *receiver(void *arg)
 //	ioctl(exp->sockfd, FIONREAD, &nr_receive);	
 	int nr_read = read(exp->sockfd, buf, RECV_BUFFER_SIZE);
 //	write(exp->sockfd, dummyResponse, REQUEST_BUFFER_SIZE);
+	if (nr_read != RECV_BUFFER_SIZE)
+	{
+	    fprintf(stderr, "Recived %d, but not %d, %s\n", nr_read, RECV_BUFFER_SIZE, buf);
+	}
 	buf[RECV_BUFFER_SIZE] = 0;
 	unsigned long receiveStamp = rdtscp();
 	int taskId = strtol(buf, NULL, 10);
@@ -201,6 +205,7 @@ int runExperiment(struct command *exp)
     int senderId = pthread_create(&senderThread, NULL, &sender, (void *)exp);
     int receiverId = pthread_create(&receiverThread, NULL, &receiver, (void *)exp);
     fprintf(stderr, "Sender:%d, receiver:%d\n", senderId, receiverId);
+    sleep(1);
     pthread_exit(NULL);
 }
 
@@ -269,7 +274,7 @@ struct command *loadCommand(int argc, char **argv)
 	/*     term += 1; */
 	/* } */
 	memset(t->term, 0, REQUEST_BUFFER_SIZE);
-	sprintf(t->term, "%s;%d", l, i);
+	sprintf(t->term, "%d;%s", i, l);
 	for (int j=0; j<REQUEST_BUFFER_SIZE; j++)
 	{
 	    if (t->term[j] == '\0' || t->term[j] == '\n')

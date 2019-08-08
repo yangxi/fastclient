@@ -125,6 +125,20 @@ def report_distribution(fname, client_time, cols, key_col):
         ipc = cols[key_col["IPC"]][client_index];
         f.write("%d,%d,%d,%d,%d,%d,%d\n" % (ri, taskid, clientlatency, serverlatency, serverqtime, cputime, ipc))
     f.close();
+    top10_file_name = fname +'-1ms.csv';    
+    f = open(top10_file_name, 'w');
+    for ri in range(0, nr_tasks):        
+        client = sorted_client_time[ri]
+        client_index = sorted_index[ri]
+        taskid = cols[key_col["taskid"]][client_index];
+        clientlatency = cols[key_col["clientLatency"]][client_index];
+        serverlatency = cols[key_col["serverLatency"]][client_index];
+        serverqtime = cols[key_col["queueTime"]][client_index];
+        cputime = cols[key_col["cpuTime"]][client_index];
+        ipc = cols[key_col["IPC"]][client_index];
+        if (serverlatency > 1000):            
+            f.write("%d,%d,%d,%d,%d,%d,%d\n" % (ri, taskid, clientlatency, serverlatency, serverqtime, cputime, ipc))
+    f.close();
 
 def parse_log(fname, reportDist=False):
 #{col_num:"str"}
@@ -198,6 +212,11 @@ def parse_log(fname, reportDist=False):
         task_id = cols[key_col["taskid"]];
         report_distribution('./client-time', client_time, cols, key_col);
         report_distribution('./server-time', server_time, cols, key_col);
+        f = open('./client-IPC.csv', 'w');
+        ipc = cols[key_col["IPC"]];        
+        for ri in range (0, len(ipc)):
+            f.write("%d,%.3f,%d,%d\n"%( ri, ipc[ri], client_time[ri], server_time[ri]));
+        f.close();
     # nr_tasks = len(client_time);
     # sorted_index = np.argsort(client_time);
     # sorted_client_time = np.sort(client_time);
@@ -366,12 +385,12 @@ def parse_lucene_iter(parsed_log):
     return {"ctime_hist":ctime_hist, "ctime_perc":ctime_perc, "ptime_time_hist":ptime_time_hist, "ptime_hist":ptime_hist,"ptime_perc":ptime_perc,"ltime_hist":ltime_hist,"ltime_perc":ltime_perc,"idletime_hist":idletime_hist,"idletime_perc":idletime_perc, "ipkc_hist":ipkc_hist,"ipkc_perc":ipkc_perc};
 
 
-
+detailedMode = False;
 
 def parse_lucene_log(fname, expected_qps, expected_iter):
-
+    global detailedMode;
 #let's calculate process time distribution
-    parsed_log = parse_log(fname, False);
+    parsed_log = parse_log(fname, detailedMode);
 #        nr_iters = len(parsed_log["iters"]);
     nr_tasks = len(parsed_log["raws"]);
     client_send_stamp_index =  parsed_log["key_col"]["clientSendStamp"];
@@ -473,12 +492,14 @@ if __name__ == "__main__":
 #    if (len(sys.argv) < 2):
 #        print usage
 #        exit()
-    if (len(sys.argv) != 3):
+    if (len(sys.argv) < 3):
         print usage
         exit()
 #    print sys.argv
-    iter = int(sys.argv[2]);
-    log = parse_iteration(sys.argv[1], iter);
+    iter = int(sys.argv[2]);    
+    if (len(sys.argv) > 3):
+        detailedMode = True;
+    log = parse_iteration(sys.argv[1], iter)
     #output qps-latency.csv
 
     # f = open('./ptime-time-dist.csv', 'w')
