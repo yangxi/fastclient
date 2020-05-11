@@ -39,7 +39,7 @@ sys.setcheckinterval(10)
 # We don't create cyclic garbage, and we want no hiccups:
 gc.disable()
 
-MAX_BYTES = 40
+MAX_BYTES = 120
 RECV_BUFFER_SIZE = 103
 
 # TODO
