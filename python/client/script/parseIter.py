@@ -107,9 +107,9 @@ def report_distribution(fname, client_time, cols, key_col):
     f = open(dist_file_name, 'w');
 #    f = open('./''./client-time-dist.csv', 'w');
     client_time_freq = norfreq(client_time)
-    client_time_dist = norfreq_to_timefreq(client_time_freq);
-    for i in range(0, len(client_time_dist[0])):
-        f.write("%d,%.3f,%.3f\n" % (client_time_dist[0][i],client_time_dist[1][i] * 100,client_time_dist[2][i]* 100));
+#    client_time_dist = norfreq_to_timefreq(client_time_freq);
+    for i in range(0, len(client_time_freq[0])):
+        f.write("%d\t%.3f\t%.3f\n" % (client_time_freq[0][i],client_time_freq[1][i] * 100,client_time_freq[2][i]* 100));
     f.close()
 
     top10_file_name = fname +'-top30.csv';
@@ -140,7 +140,7 @@ def report_distribution(fname, client_time, cols, key_col):
             f.write("%d,%d,%d,%d,%d,%d,%d\n" % (ri, taskid, clientlatency, serverlatency, serverqtime, cputime, ipc))
     f.close();
 
-def parse_log(fname, reportDist=False):
+def parse_log(fname, reportDist=True):
 #{col_num:"str"}
     col_key={}
     key_col={}
@@ -206,17 +206,17 @@ def parse_log(fname, reportDist=False):
 #    for i in range(0, len(server_time)):
 #        if (server_time[i] > 1000):
 #            print "%d: %d" % (task_id[i], server_time[i]);
-
-    if (reportDist):
-        client_time = cols[key_col["clientLatency"]].astype(int)
-        server_time = cols[key_col["serverLatency"]].astype(int)/100;
+    if (True):
+        print("Report latency distributions.")
+        client_time = cols[key_col["clientLatency"]].astype(int)/1000
+        server_time = cols[key_col["serverLatency"]].astype(int)/1000;
         task_id = cols[key_col["taskid"]];
         report_distribution('./client-time', client_time, cols, key_col);
         report_distribution('./server-time', server_time, cols, key_col);
         f = open('./client-IPC.csv', 'w');
         ipc = cols[key_col["IPC"]];        
         for ri in range (0, len(ipc)):
-            f.write("%d,%.3f,%d,%d\n"%( ri, ipc[ri], client_time[ri], server_time[ri]));
+            f.write("%d\t%.3f\t%d\t%d\n"%( ri, ipc[ri], client_time[ri], server_time[ri]));
         f.close();
     # nr_tasks = len(client_time);
     # sorted_index = np.argsort(client_time);

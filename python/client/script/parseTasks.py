@@ -90,7 +90,7 @@ def parse_log(fname):
 
     f = open(fname,'r');
     hl = f.readline();
-    hl = "#taskid:hits:receiveStamp:queueTime:finishTime:retiredIns:retiredCycles:clienttime:serverQtime:serverPtime:serverLatency\n"
+    hl = "#taskid:hits:receiveStamp:queueTime:finishTime:retiredIns:retiredCycles:clienttime:clientStart\n"
     a = hl.strip('#').rstrip('\n').split(':')
     for i in range(0, len(a)):
         col_key[i] = a[i];
@@ -203,6 +203,19 @@ def parse_log(fname):
 
 
 #input:a list, out put:[bin,percent,accupercent]
+""" example: a=[1,1,2,2,4,5,6]
+norfreq(a)
+[[1, 2, 4, 5, 6],
+ [0.2857142857142857,
+  0.2857142857142857,
+  0.14285714285714285,
+  0.14285714285714285,
+  0.14285714285714285],
+ [0.2857142857142857,
+  0.5714285714285714,
+  0.71428571428571419,
+  0.85714285714285698,
+  0.99999999999999978]] """
 def norfreq(a):
     fa = stat.itemfreq(a)
     t = len(a)
@@ -371,7 +384,7 @@ if __name__ == "__main__":
         print usage
         exit()
     fnames=[]
-    logs = parse_logs(sys.argv[1:])
+    logs = pars_logs(sys.argv[1:])
     #output qps-latency.csv
 
     f = open('./ptime-time-dist.csv', 'w')
