@@ -47,10 +47,17 @@ def getTaskPerf(taskFiles, serverHost, serverPort):
             result = result + sock.recv(RECV_BUFFER_SIZE - len(result))
         endTime = time.time()
         clientLatency = (endTime - startTime) * 1000
-        perf.append(result.split(':'));
-        print("%s : %.3f  %s" % (tasks[i][1], clientLatency, perf[taskId]))
+        #out.write(String.format(Locale.ENGLISH, "%8d:%9d:%16d:%16d:%16d:%16d:%16d", task.taskID, totalHitCount, receiveTime, processTime-receiveTime, finishTime-receiveTime, ins, cycles).getBytes("UTF-8"));}
+        latency = result.split(':')
+        latency.insert(0, clientLatency)
+        print(latency);
+        perf.append(latency)
+        print("%s : %s" % (tasks[i][1], str(perf[taskId])))
     return {"tasks":tasks, "perf":perf}
-        
+def processTimeDistribution(taskPerf):
+    #taskPerf["tasks"][n][0:type][1:term]
+    #taskPerf["perf"][n][[clientLatency,.....]]
+    print("hello")
 if __name__ == '__main__':
     if len(sys.argv) < 4:
         print("pickTasks.py server port taskfiles")
