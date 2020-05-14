@@ -1,0 +1,12 @@
+Tag=4x2
+TaskFile=../script/wiki.and2kterm.tasks
+WarmupQPS=500
+StartQPS=100
+EndQPS=500
+StepQPS=100
+Iteration=2
+CFSQuota=-1
+CFSCpuset=0,1,2,3,8,9,10,11
+CgroupName=lucene
+ServerHost=td2
+ServerPort=7777

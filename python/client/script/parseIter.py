@@ -206,7 +206,7 @@ def parse_log(fname, reportDist=True):
 #    for i in range(0, len(server_time)):
 #        if (server_time[i] > 1000):
 #            print "%d: %d" % (task_id[i], server_time[i]);
-    if (True):
+    if (False):
         print("Report latency distributions.")
         client_time = cols[key_col["clientLatency"]].astype(int)/1000
         server_time = cols[key_col["serverLatency"]].astype(int)/1000;
@@ -423,6 +423,9 @@ def parse_lucene_log(fname, expected_qps, expected_iter):
     print "%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f" % (expected_iter, expected_qps, int(avg_qps),
                                                                 client_50th_ms,client_90th_ms,client_99th_ms,client_max_ms,
                                                                 server_50th_ms,server_90th_ms,server_99th_ms,server_max_ms);
+    return {"iter":expected_iter, "expected_qps":expected_qps, "qps":int(avg_qps),
+            "client_50th": client_50th_ms, "client_90th":client_90th_ms, "client_99th":client_99th_ms, "client_max": client_max_ms,
+            "server_50th": server_50th_ms, "server_90th": server_90th_ms, "server_99th": server_99th_ms, "server_max": server_max_ms}
                                                                 
     # cycles_index = parsed_log["key_col"]["retiredCycles"];
     # client_time = parsed_log["key_col"]["clienttime"];
@@ -430,12 +433,45 @@ def parse_lucene_log(fname, expected_qps, expected_iter):
     # cols = parsed_log["cols"]
     # wall_total_cycle = cols[rc_stamp_index][-1] - cols[rc_stamp_index][0];
     # wall_total_sec = wall_total_cycle/(1000000000.0);
- 
+
+def parse_logs(names):
+    logs = {}
+    for f in names:
+        sf = f.split('_');
+        iters = int(sf[-1])
+        qps = int(sf[-2])
+        print "parse log file %s qps %d invoks %d\n" %(f, qps, iters)
+        logs[qps] = parse_lucene_log(f, qps, iters)
+    return logs
+
+def parse_iteration(f, iter):
+    sf = f.split('_');
+#    iters = int(sf[-1])
+    qps = int(sf[-2])
+#    print "parse log file %s qps %d interation %d\n" %(f, qps, iter)
+    log = parse_lucene_log(f, qps, iter)
+    return log;
+
+
+if __name__ == "__main__":
+    usage = "python logfile iteration"
+#    if (len(sys.argv) < 2):
+#        print usage
+#        exit()
+    if (len(sys.argv) < 3):
+        print usage
+        exit()
+#    print sys.argv
+    iter = int(sys.argv[2]);    
+    if (len(sys.argv) > 3):
+        detailedMode = True;
+    log = parse_iteration(sys.argv[1], iter)
+
 # observed QPS
 #    print "Tasks:%d, cycles:%d, qps:%.2f (%d)\n" % (nr_tasks, wall_total_cycle, avg_qps, expected_qps);
-    stat = {};
-    stat["measured_qps"] = avg_qps;
-    return stat;
+#    stat = {}
+#    stat["measured_qps"] = avg_qps
+#    return stat;
 # CPU utilization
     # diff_cycle_col = parsed_log["diff_cols"][cycles_index]
     # nr_cycles = np.sum(diff_cycle_col);
@@ -472,38 +508,7 @@ def parse_lucene_log(fname, expected_qps, expected_iter):
 
 #each file name in format as
 #id_qps_iteration
-def parse_logs(names):
-    logs = {}
-    for f in names:
-        sf = f.split('_');
-        iters = int(sf[-1])
-        qps = int(sf[-2])
-        print "parse log file %s qps %d invoks %d\n" %(f, qps, iters)
-        logs[qps] = parse_lucene_log(f, qps, iters)
-    return logs
 
-def parse_iteration(f, iter):
-    sf = f.split('_');
-#    iters = int(sf[-1])
-    qps = int(sf[-2])
-#    print "parse log file %s qps %d interation %d\n" %(f, qps, iter)
-    log = parse_lucene_log(f, qps, iter)
-    return log;
-
-
-if __name__ == "__main__":
-    usage = "python logfile iteration"
-#    if (len(sys.argv) < 2):
-#        print usage
-#        exit()
-    if (len(sys.argv) < 3):
-        print usage
-        exit()
-#    print sys.argv
-    iter = int(sys.argv[2]);    
-    if (len(sys.argv) > 3):
-        detailedMode = True;
-    log = parse_iteration(sys.argv[1], iter)
     #output qps-latency.csv
 
     # f = open('./ptime-time-dist.csv', 'w')

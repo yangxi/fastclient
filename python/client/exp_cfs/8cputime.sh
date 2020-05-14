@@ -1,0 +1,12 @@
+Tag=8cputime
+TaskFile=../script/wiki.and2kterm.tasks
+WarmupQPS=500
+StartQPS=100
+EndQPS=500
+StepQPS=100
+Iteration=2
+CFSQuota=800000
+CFSCpuset=0-15
+CgroupName=lucene
+ServerHost=td2
+ServerPort=7777
