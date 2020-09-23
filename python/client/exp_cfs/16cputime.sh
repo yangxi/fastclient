@@ -5,6 +5,7 @@ StartQPS=100
 EndQPS=500
 StepQPS=100
 Iteration=2
+CFSPeriod=100000
 CFSQuota=-1
 CFSCpuset=0-15
 CgroupName=lucene

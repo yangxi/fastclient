@@ -38,7 +38,23 @@ echo "Set $CgroupName cpu.cfs_quota_us to $CFSQuota and the cpuset to $CFSCpuset
 ssh td2 "echo $CFSQuota > /sys/fs/cgroup/cpu/$CgroupName/cpu.cfs_quota_us"
 ssh td2 "echo $CFSCpuset > /sys/fs/cgroup/cpuset/$CgroupName/cpuset.cpus"
 echo Checking CFSQuota: `ssh td2 "cat /sys/fs/cgroup/cpu/$CgroupName/cpu.cfs_quota_us"`
-echo Checking CFSCpuset: `cat /sys/fs/cgroup/cpuset/$CgroupName/cpuset.cpus`
+echo Checking CFSCpuset: `ssh td2 cat /sys/fs/cgroup/cpuset/$CgroupName/cpuset.cpus`
+if [[ -z $CFSPeriod ]]; then
+    echo "Set $CgroupName cpu.fs_period_us to 100000"
+    ssh td2 "echo 100000 > /sys/fs/cgroup/cpu/$CgroupName/cpu.cfs_period_us"
+    echo Checking CFSPeriod: `ssh td2 "cat /sys/fs/cgroup/cpu/$CgroupName/cpu.cfs_period_us"`
+else
+    echo "Set $CgroupName cpu.csf_period_us to $CFSPeriod"
+    ssh td2 "echo $CFSPeriod > /sys/fs/cgroup/cpu/$CgroupName/cpu.cfs_period_us"
+    echo Checking CFSPeriod: `ssh td2 "cat /sys/fs/cgroup/cpu/$CgroupName/cpu.cfs_period_us"`
+fi
+
+if [[ ! -z $CFSCPUQuota ]]; then
+    echo "Set $CgroupName cpu.cpu_cfs_quota to $CFSCPUQuota"
+    ssh td2 "echo $CFSCPUQuota > /sys/fs/cgroup/cpu/$CgroupName/cpu.cfs_cpu_quota"
+    echo Checking CFSCPUQuota: `ssh td2 "cat /sys/fs/cgroup/cpu/$CgroupName/cpu.cfs_cpu_quota"`
+fi
+    
 
 echo "Warming up with $WarmupQPS QPS"
 
@@ -49,8 +65,10 @@ for ((q=$StartQPS;q<=$EndQPS;q+=$StepQPS)); do
     echo "Evaluating $q QPS"
     echo "========================================="
     ssh td2 "cat /proc/stat" > ./ProcStatBegin_${Tag}_${q}_${Iteration}
+    ssh td2 "cat /sys/fs/cgroup/cpu/$CgroupName/cpu.stat" > ./CgroupCPUStatBegin_${Tag}_${q}_${Iteration}
     python /home/xyang/code/fastclient/python/client/script/sendTasks.py ${TaskFile} ${ServerHost} ${ServerPort} ${q} 1000000 200000 ${Tag}_${q}_${Iteration} ${Iteration} order
     ssh td2 "cat /proc/stat" > ./ProcStatEnd_${Tag}_${q}_${Iteration}
+    ssh td2 "cat /sys/fs/cgroup/cpu/$CgroupName/cpu.stat" > ./CgroupCPUStatEnd_${Tag}_${q}_${Iteration}
     echo "Report:"
     python /home/xyang/code/fastclient/python/client/script/parseIter.py ${Tag}_${q}_${Iteration} ${Iteration}
     python /home/xyang/code/fastclient/python/client/script/parsecpu.py ProcStatBegin_${Tag}_${q}_${Iteration} ProcStatEnd_${Tag}_${q}_${Iteration}

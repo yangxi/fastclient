@@ -61,7 +61,7 @@ def parse_header_line(l):
         d[kv[0]]=i+1;
         t += typeToDesc[kv[1]];
         s += typeToSize[kv[1]];
-    print "this file has keys " + str(d.keys()) + " line size " + str(s) + " parse with " + t;
+    print("this file has keys %s line size %s parse with %s"%(str(d.keys()),str(s),t))
     return (d, t, s);
 
 def update_latency_stat(stat,latency):
@@ -96,12 +96,12 @@ def report_distribution(fname, client_time, cols, key_col):
     sorted_index = np.argsort(client_time);
     sorted_client_time = np.sort(client_time);
 
-    print "total %d tasks" % (nr_tasks);    
+    print("total %d tasks" % (nr_tasks))
     median_index = int(nr_tasks * 0.5) - 1;
     p90_index = int(nr_tasks * 0.9) - 1;
     p99_index = int(nr_tasks * 0.99) - 1;
     max_index =  -1;
-    print "%d %d %d %d\n" % (sorted_client_time[median_index], sorted_client_time[p90_index], sorted_client_time[p99_index], sorted_client_time[max_index]);
+    print("%d %d %d %d\n" % (sorted_client_time[median_index], sorted_client_time[p90_index], sorted_client_time[p99_index], sorted_client_time[max_index]))
         #x is ms, y is % of requrest
     dist_file_name = fname + '-dist.csv';
     f = open(dist_file_name, 'w');
@@ -315,7 +315,7 @@ def norfreq(a):
 #{key->count}
 def parse_lucene_iter(parsed_log):
     #process time distribution, latency distribution, queue time distribution
-    print parsed_log["key_col"];
+    print(parsed_log["key_col"]);
     cols = parsed_log["cols"]
     raws = parsed_log["raws"]
 #    diff_cols = parsed_log["diff_cols"]
@@ -339,7 +339,7 @@ def parse_lucene_iter(parsed_log):
     ltime_perc = latency(ltimeNS);
     ctimeCol = parsed_log["key_col"]["clienttime"];
     ctimeMS = np.array(cols[ctimeCol]);
-    print ctimeMS;
+    #print ctimeMS;
     ctime_hist = norfreq(ctimeMS);
     ctime_perc = latency(ctimeMS);
 
@@ -419,10 +419,10 @@ def parse_lucene_log(fname, expected_qps, expected_iter):
     server_90th_ms = server_tail[1]/(1000.0)
     server_99th_ms = server_tail[2]/(1000.0)
     server_max_ms = server_tail[3]/(1000.0)
-    print "Iter, expected QPS, runtime QPS, client 50th(ms), client 90th(ms), client 99th(ms), client max(ms),...SERVER"
-    print "%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f" % (expected_iter, expected_qps, int(avg_qps),
+    print("Iter, expected QPS, runtime QPS, client 50th(ms), client 90th(ms), client 99th(ms), client max(ms),...SERVER")
+    print("%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f" % (expected_iter, expected_qps, int(avg_qps),
                                                                 client_50th_ms,client_90th_ms,client_99th_ms,client_max_ms,
-                                                                server_50th_ms,server_90th_ms,server_99th_ms,server_max_ms);
+                                                                server_50th_ms,server_90th_ms,server_99th_ms,server_max_ms))
     return {"iter":expected_iter, "expected_qps":expected_qps, "qps":int(avg_qps),
             "client_50th": client_50th_ms, "client_90th":client_90th_ms, "client_99th":client_99th_ms, "client_max": client_max_ms,
             "server_50th": server_50th_ms, "server_90th": server_90th_ms, "server_99th": server_99th_ms, "server_max": server_max_ms}
@@ -440,7 +440,7 @@ def parse_logs(names):
         sf = f.split('_');
         iters = int(sf[-1])
         qps = int(sf[-2])
-        print "parse log file %s qps %d invoks %d\n" %(f, qps, iters)
+        print("parse log file %s qps %d invoks %d\n" %(f, qps, iters))
         logs[qps] = parse_lucene_log(f, qps, iters)
     return logs
 
@@ -459,7 +459,7 @@ if __name__ == "__main__":
 #        print usage
 #        exit()
     if (len(sys.argv) < 3):
-        print usage
+        print(usage)
         exit()
 #    print sys.argv
     iter = int(sys.argv[2]);    

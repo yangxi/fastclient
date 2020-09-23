@@ -25,7 +25,7 @@ def getCPUUtilization(startCPU, endCPU):
     utilization = float(busyTime)/totalTime
     return [utilization, totalTime, busyTime, userTime, systemTime, idleTime]
 
-def listCPUUtilization(startStatFile, endStatFile):
+def parse_utilization(startStatFile, endStatFile):
     ret= {}
     startStat = parseProcStat(startStatFile)
     endStat = parseProcStat(endStatFile)
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     if (len(sys.argv) != 3):
         print(usage)
         exit(1)
-    listCPUUtilization(sys.argv[1], sys.argv[2]);
+    parse_utilization(sys.argv[1], sys.argv[2]);
 
 
     

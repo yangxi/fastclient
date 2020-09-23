@@ -353,8 +353,9 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
             out.write('WARNING: hiccup %.1f msec\n' % (-1000*pause))
             warned = True
 
-        #origTask = task
+        # origTask = task
         tasks.send(startTime, task)
+        # afterThisIteration, we have to wait for the server to finish all requests
 
       t = time.time()
 
