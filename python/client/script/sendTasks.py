@@ -141,6 +141,12 @@ class SendTasks:
 #    print("TaskString:%s"%taskString);
     self.queue.put((startTime, taskString))
     self.taskID += 1
+  def waitForEmpty(self):
+    nr_wait_sec = 0
+    while(len(self.sent) != 0):
+      time.sleep(0.5)
+      nr_wait_sec+=0.5
+    return nr_wait_sec
 
   def gatherResponses(self):
 
@@ -315,7 +321,7 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
   tasks = SendTasks(serverHost, serverPort, out, runTimeSec, savFile)
 #  time.sleep(2);
 
-  targetTime = tasks.startTime
+#  targetTime = tasks.startTime
 
   if meanQPS == 'sweep':
     doSweep = True
@@ -332,8 +338,10 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
 
     while True:
 # we can do something here before this new iteration
+      tasks.startTime = time.time();
+      targetTime = tasks.startTime;
       iters += 1
-
+      
       for task in taskStrings:
 
         targetTime += r.expovariate(meanQPS)
@@ -355,8 +363,9 @@ def run(tasksFile, serverHost, serverPort, meanQPS, numTasksPerCat, runTimeSec, 
 
         # origTask = task
         tasks.send(startTime, task)
-        # afterThisIteration, we have to wait for the server to finish all requests
-
+     # afterThisIteration, we have to wait for the server to finish all requests        
+      nr_secs = tasks.waitForEmpty()
+      out.write("Wait for %.2f seconds to drain all tasks\n"%nr_secs)
       t = time.time()
 
       if doSweep:

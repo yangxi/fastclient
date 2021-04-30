@@ -78,7 +78,7 @@ def latency(vals):
     return {"avg":average_latency, "50":sorted_vals[mean_index][1], "95":sorted_vals[per_95_index][1], "99":sorted_vals[per_99_index][1], "perc_index":[sorted_vals[mean_index][0],sorted_vals[per_95_index][0],sorted_vals[per_99_index][0]]};
 
 #return [50% 90 99 max]
-def get_tail_latency(time, cols, key_col):
+def get_tail_latency(time):
     nr_tasks = len(time);
     sorted_index = np.argsort(time);
     sorted_client_time = np.sort(time);
@@ -140,7 +140,9 @@ def report_distribution(fname, client_time, cols, key_col):
             f.write("%d,%d,%d,%d,%d,%d,%d\n" % (ri, taskid, clientlatency, serverlatency, serverqtime, cputime, ipc))
     f.close();
 
-def parse_log(fname, reportDist=True):
+reportDist = False
+def parse_log(fname, detailedMode=False):
+    global reportDist
 #{col_num:"str"}
     col_key={}
     key_col={}
@@ -206,7 +208,7 @@ def parse_log(fname, reportDist=True):
 #    for i in range(0, len(server_time)):
 #        if (server_time[i] > 1000):
 #            print "%d: %d" % (task_id[i], server_time[i]);
-    if (False):
+    if (reportDist):
         print("Report latency distributions.")
         client_time = cols[key_col["clientLatency"]].astype(int)/1000
         server_time = cols[key_col["serverLatency"]].astype(int)/1000;
@@ -388,45 +390,57 @@ def parse_lucene_iter(parsed_log):
 
 detailedMode = False;
 
-def parse_lucene_log(fname, expected_qps, expected_iter):
+def parse_lucene_log(fname, expected_qps, nr_iters):
     global detailedMode;
 #let's calculate process time distribution
     parsed_log = parse_log(fname, detailedMode);
 #        nr_iters = len(parsed_log["iters"]);
-    nr_tasks = len(parsed_log["raws"]);
-    client_send_stamp_index =  parsed_log["key_col"]["clientSendStamp"];
-    client_recv_stamp_index =  parsed_log["key_col"]["clientRecvStamp"];
-    # when using the python client, the client_send_stamp and recv stamp are in us
-    client_time_index = parsed_log["key_col"]["clientLatency"];
-    server_time_index = parsed_log["key_col"]["serverLatency"];    
-    cols = parsed_log["cols"];
-    wall_total_cycle = (cols[client_send_stamp_index][-1] - cols[client_send_stamp_index][0])
-    wall_total_sec = wall_total_cycle / (1000 * 1000.0);
-    print("Tasks:%d seconds:%f cycles:%d [ %d, %d]" % (nr_tasks, wall_total_sec, wall_total_cycle, cols[client_send_stamp_index][-1], cols[client_send_stamp_index][0]))
-    avg_qps = float(nr_tasks)  / wall_total_sec;
+    nr_tasks = len(parsed_log["raws"]);    
+    if nr_tasks % nr_iters != 0:
+        print("WARN: the total tasks %d is not the number of iters %d" % (nr_tasks, nr_iters))
+    cols = parsed_log["cols"]
+    tasks_per_iter = nr_tasks / nr_iters
+    ret = []
+    for iter in range(0, nr_iters):
+        this_iter = int(tasks_per_iter * iter)
+        next_iter = int(tasks_per_iter * (iter + 1))
+        print("Examing [%d,%d]"%(this_iter, next_iter))
+        client_send_stamp_index =  parsed_log["key_col"]["clientSendStamp"]
+        client_recv_stamp_index =  parsed_log["key_col"]["clientRecvStamp"]
+        # when using the python client, the client_send_stamp and recv stamp are in us
+        client_time_index = parsed_log["key_col"]["clientLatency"]
+        server_time_index = parsed_log["key_col"]["serverLatency"]
+        iter_client_send_col = cols[client_send_stamp_index][this_iter:next_iter]       
+        wall_total_cycle = iter_client_send_col[-1] - iter_client_send_col[0]
+        wall_total_sec = wall_total_cycle / (1000 * 1000.0);
+#        print("Iter:%d Tasks:%d seconds:%f cycles:%d [ %d, %d]" % (iter, tasks_per_iter, wall_total_sec, wall_total_cycle, iter_client_send_col[-1], iter_client_send_col[0]))
+        avg_qps = float(tasks_per_iter)  / wall_total_sec;
 
-    # report results
-    client_time_us = cols[client_time_index].astype(int);
-    server_time_us = cols[server_time_index].astype(int);
-    client_tail = get_tail_latency(client_time_us, cols, parsed_log["key_col"]);
-    server_tail = get_tail_latency(server_time_us, cols, parsed_log["key_col"]);
-    client_50th_ms = client_tail[0]/(1000.0)
-    client_90th_ms = client_tail[1]/(1000.0)
-    client_99th_ms = client_tail[2]/(1000.0)
-    client_max_ms = client_tail[3]/(1000.0)
+        # report results
+        client_time_us = cols[client_time_index][this_iter:next_iter].astype(int)
+        server_time_us = cols[server_time_index][this_iter:next_iter].astype(int)
+        client_tail = get_tail_latency(client_time_us)
+        server_tail = get_tail_latency(server_time_us)
+        client_50th_ms = client_tail[0]/(1000.0)
+        client_90th_ms = client_tail[1]/(1000.0)
+        client_99th_ms = client_tail[2]/(1000.0)
+        client_max_ms = client_tail[3]/(1000.0)
 
-    server_50th_ms = server_tail[0]/(1000.0)
-    server_90th_ms = server_tail[1]/(1000.0)
-    server_99th_ms = server_tail[2]/(1000.0)
-    server_max_ms = server_tail[3]/(1000.0)
-    print("Iter, expected QPS, runtime QPS, client 50th(ms), client 90th(ms), client 99th(ms), client max(ms),...SERVER")
-    print("%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f" % (expected_iter, expected_qps, int(avg_qps),
-                                                                client_50th_ms,client_90th_ms,client_99th_ms,client_max_ms,
-                                                                server_50th_ms,server_90th_ms,server_99th_ms,server_max_ms))
-    return {"iter":expected_iter, "expected_qps":expected_qps, "qps":int(avg_qps),
+        server_50th_ms = server_tail[0]/(1000.0)
+        server_90th_ms = server_tail[1]/(1000.0)
+        server_99th_ms = server_tail[2]/(1000.0)
+        server_max_ms = server_tail[3]/(1000.0)
+        ret.append({"iter":iter, "expected_qps":expected_qps, "qps":int(avg_qps),
             "client_50th": client_50th_ms, "client_90th":client_90th_ms, "client_99th":client_99th_ms, "client_max": client_max_ms,
-            "server_50th": server_50th_ms, "server_90th": server_90th_ms, "server_99th": server_99th_ms, "server_max": server_max_ms}
-                                                                
+            "server_50th": server_50th_ms, "server_90th": server_90th_ms, "server_99th": server_99th_ms, "server_max": server_max_ms})
+
+    print("Iter, expected QPS, runtime QPS, client 50th(ms), client 90th(ms), client 99th(ms), client max(ms),...SERVER")
+    for iter in range(0, nr_iters):
+            iter_ret = ret[iter]
+            print("%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f" % (iter, iter_ret["expected_qps"], iter_ret["qps"],
+                iter_ret['client_50th'], iter_ret['client_90th'], iter_ret['client_99th'], iter_ret['client_max'],
+                iter_ret['server_50th'], iter_ret['server_90th'], iter_ret['server_99th'], iter_ret['server_max']))
+    return ret                                                                
     # cycles_index = parsed_log["key_col"]["retiredCycles"];
     # client_time = parsed_log["key_col"]["clienttime"];
     # raws = parsed_log["raws"]
@@ -450,11 +464,11 @@ def parse_iteration(f, iter):
     qps = int(sf[-2])
 #    print "parse log file %s qps %d interation %d\n" %(f, qps, iter)
     log = parse_lucene_log(f, qps, iter)
-    return log;
+    return log
 
 
 if __name__ == "__main__":
-    usage = "python logfile iteration"
+    usage = "python logfile iteration reportDist"
 #    if (len(sys.argv) < 2):
 #        print usage
 #        exit()
@@ -464,7 +478,7 @@ if __name__ == "__main__":
 #    print sys.argv
     iter = int(sys.argv[2]);    
     if (len(sys.argv) > 3):
-        detailedMode = True;
+        reportDist = True;
     log = parse_iteration(sys.argv[1], iter)
 
 # observed QPS

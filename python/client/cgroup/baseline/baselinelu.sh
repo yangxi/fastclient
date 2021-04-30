@@ -1,0 +1,13 @@
+Tag=baseline
+TaskFile=../../script/wiki.and2kterm.tasks
+#WarmupQPS=500
+StartQPS=3000
+EndQPS=4000
+StepQPS=100
+Iteration=5
+CFSPeriod=100000
+CFSQuota=-1
+CFSCpuset=0-15
+CgroupName=vm1
+ServerHost=td2
+ServerPort=7777

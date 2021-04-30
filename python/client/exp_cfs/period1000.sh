@@ -1,0 +1,13 @@
+Tag=period1000cpu8
+TaskFile=../script/wiki.and2kterm.tasks
+WarmupQPS=500
+StartQPS=100
+EndQPS=500
+StepQPS=100
+Iteration=2
+CFSPeriod=1000
+CFSQuota=8000
+CFSCpuset=0-15
+CgroupName=lucene
+ServerHost=td2
+ServerPort=7777

@@ -1,0 +1,12 @@
+OrLowLow: harv output
+OrLowLow: output campus
+OrHighHigh: http title
+OrHighHigh: cite cite
+OrMedMed: second june
+OrMedMed: several october
+AndLowLow: harv output
+AndLowLow: output campus
+AndHighHigh: +http +title
+AndHighHigh: +cite +cite
+AndMedMed: +second +june
+AndMedMed: +several +october

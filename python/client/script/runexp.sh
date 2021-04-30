@@ -13,7 +13,7 @@ if [[ -z $CFSQuota || -z $CFSCpuset || -z $CgroupName ]]; then
 fi
 
 
-if [[ -z $Tag || -z $WarmupQPS || -z $Iteration || -z $TaskFile || -z $ServerHost || -z $ServerPort ]]; then
+if [[ -z $Tag || -z $Iteration || -z $TaskFile || -z $ServerHost || -z $ServerPort ]]; then
    echo "Tag, WarmupQPS, Iteration, TaskFile, ServerHost, or ServerPort is not set"
    exit -1;
 fi
@@ -54,21 +54,23 @@ if [[ ! -z $CFSCPUQuota ]]; then
     ssh td2 "echo $CFSCPUQuota > /sys/fs/cgroup/cpu/$CgroupName/cpu.cfs_cpu_quota"
     echo Checking CFSCPUQuota: `ssh td2 "cat /sys/fs/cgroup/cpu/$CgroupName/cpu.cfs_cpu_quota"`
 fi
-    
 
-echo "Warming up with $WarmupQPS QPS"
-
-python /home/xyang/code/fastclient/python/client/script/sendTasks.py ${TaskFile} ${ServerHost} ${ServerPort} ${WarmupQPS} 1000000 200000 warmup_${Tag}_${WarmupQPS}_${Iteration} ${Iteration} order
+if [ -n $WarmupQPS ]; then
+    echo "Warming up with $WarmupQPS QPS"
+    python /home/xyang/code/fastclient/python/client/script/sendTasks.py ${TaskFile} ${ServerHost} ${ServerPort} ${WarmupQPS} 1000000 200000 warmup_${Tag}_${WarmupQPS}_${Iteration} ${Iteration} order
+else
+    echo "No warmup"
+fi
 
 echo "Start the benchmark"
 for ((q=$StartQPS;q<=$EndQPS;q+=$StepQPS)); do
     echo "Evaluating $q QPS"
     echo "========================================="
     ssh td2 "cat /proc/stat" > ./ProcStatBegin_${Tag}_${q}_${Iteration}
-    ssh td2 "cat /sys/fs/cgroup/cpu/$CgroupName/cpu.stat" > ./CgroupCPUStatBegin_${Tag}_${q}_${Iteration}
+    ssh td2 "cat /sys/fs/cgroup/cpu/$CgroupName/cpu.stat" > ./Cgroup-${CgroupName}-CPUStatBegin_${Tag}_${q}_${Iteration}
     python /home/xyang/code/fastclient/python/client/script/sendTasks.py ${TaskFile} ${ServerHost} ${ServerPort} ${q} 1000000 200000 ${Tag}_${q}_${Iteration} ${Iteration} order
     ssh td2 "cat /proc/stat" > ./ProcStatEnd_${Tag}_${q}_${Iteration}
-    ssh td2 "cat /sys/fs/cgroup/cpu/$CgroupName/cpu.stat" > ./CgroupCPUStatEnd_${Tag}_${q}_${Iteration}
+    ssh td2 "cat /sys/fs/cgroup/cpu/$CgroupName/cpu.stat" > ./Cgroup-${CgroupName}-CPUStatEnd_${Tag}_${q}_${Iteration}
     echo "Report:"
     python /home/xyang/code/fastclient/python/client/script/parseIter.py ${Tag}_${q}_${Iteration} ${Iteration}
     python /home/xyang/code/fastclient/python/client/script/parsecpu.py ProcStatBegin_${Tag}_${q}_${Iteration} ProcStatEnd_${Tag}_${q}_${Iteration}
